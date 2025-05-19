@@ -158,6 +158,51 @@ export const useChessGame = () => {
     });
   }, []);
 
+  // Manually trigger computer move (for UI button)
+  const computerMove = useCallback(() => {
+    if (gameState.currentTurn === "black" && !gameState.isGameOver) {
+      const computerMoveResult = getComputerMove(gameState.pieces, "black");
+      
+      if (computerMoveResult) {
+        const { piece, targetPosition } = computerMoveResult;
+        
+        setGameState((prevState) => {
+          // Capture logic
+          const capturedPiece = getPieceAtPosition(prevState.pieces, targetPosition);
+          
+          // Update piece positions
+          const updatedPieces = prevState.pieces.map((p) => {
+            if (p.id === piece.id) {
+              return {
+                ...p,
+                position: targetPosition,
+                hasMoved: true,
+              };
+            }
+            return p;
+          }).filter((p) => {
+            // Remove captured piece
+            return !(capturedPiece && p.id === capturedPiece.id);
+          });
+          
+          const moveEntry = {
+            piece,
+            fromPosition: piece.position,
+            toPosition: targetPosition,
+            capturedPiece: capturedPiece || null,
+          };
+          
+          return {
+            ...prevState,
+            pieces: updatedPieces,
+            currentTurn: "white",
+            moveHistory: [...prevState.moveHistory, moveEntry],
+          };
+        });
+      }
+    }
+  }, [gameState.currentTurn, gameState.isGameOver, gameState.pieces]);
+
   // Computer move logic
   useEffect(() => {
     if (
@@ -167,51 +212,12 @@ export const useChessGame = () => {
     ) {
       // Add a small delay to make it feel more natural
       const timerId = setTimeout(() => {
-        const computerMove = getComputerMove(gameState.pieces, "black");
-        
-        if (computerMove) {
-          setGameState((prevState) => {
-            const { pieces } = prevState;
-            const { piece, targetPosition } = computerMove;
-            
-            // Capture logic
-            const capturedPiece = getPieceAtPosition(pieces, targetPosition);
-            
-            // Update piece positions
-            const updatedPieces = pieces.map((p) => {
-              if (p.id === piece.id) {
-                return {
-                  ...p,
-                  position: targetPosition,
-                  hasMoved: true,
-                };
-              }
-              return p;
-            }).filter((p) => {
-              // Remove captured piece
-              return !(capturedPiece && p.id === capturedPiece.id);
-            });
-            
-            const moveEntry = {
-              piece,
-              fromPosition: piece.position,
-              toPosition: targetPosition,
-              capturedPiece: capturedPiece || null,
-            };
-            
-            return {
-              ...prevState,
-              pieces: updatedPieces,
-              currentTurn: "white",
-              moveHistory: [...prevState.moveHistory, moveEntry],
-            };
-          });
-        }
+        computerMove();
       }, 500);
       
       return () => clearTimeout(timerId);
     }
-  }, [gameState.gameMode, gameState.currentTurn, gameState.isGameOver, gameState.pieces]);
+  }, [gameState.gameMode, gameState.currentTurn, gameState.isGameOver, computerMove]);
 
   // Check for game over conditions
   useEffect(() => {
@@ -246,5 +252,6 @@ export const useChessGame = () => {
     resetGame,
     undoMove,
     setGameMode,
+    computerMove,
   };
 };
